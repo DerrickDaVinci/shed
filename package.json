@@ -1,0 +1,16 @@
+{
+  "name": "shed",
+  "private": true,
+  "version": "0.1.0",
+  "description": "Right-click a folder to clean the build output and AI-tool leftovers you never see. Offline.",
+  "scripts": {
+    "tauri": "tauri",
+    "dev": "tauri dev",
+    "build": "tauri build",
+    "icon": "tauri icon assets/icon.png"
+  },
+  "devDependencies": {
+    "@tauri-apps/cli": "^2"
+  },
+  "license": "MIT"
+}

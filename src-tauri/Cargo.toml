@@ -1,0 +1,38 @@
+[package]
+name = "shed"
+version = "0.1.0"
+description = "Right-click a folder to clean the build output and AI-tool leftovers you never see."
+authors = ["Shed contributors"]
+license = "MIT"
+edition = "2021"
+rust-version = "1.80"
+
+[[bin]]
+name = "shed"
+path = "src/main.rs"
+
+[build-dependencies]
+tauri-build = { version = "2", features = [] }
+
+[dependencies]
+tauri = { version = "2", features = [] }
+tauri-plugin-dialog = "2"
+tauri-plugin-single-instance = "2"
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+dirs = "6"
+
+[target.'cfg(target_os = "macos")'.dependencies]
+objc2 = "0.6"
+objc2-foundation = { version = "0.3", features = ["NSString", "NSURL", "NSFileManager", "NSError"] }
+objc2-app-kit = { version = "0.3", default-features = false, features = ["std", "NSApplication", "NSResponder", "NSPasteboard", "NSPasteboardItem"] }
+
+[target.'cfg(not(target_os = "macos"))'.dependencies]
+trash = "5"
+
+[profile.release]
+codegen-units = 1
+lto = true
+opt-level = "s"
+panic = "abort"
+strip = true

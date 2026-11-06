@@ -1,0 +1,84 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1024 1024" width="1024" height="1024">
+  <!--
+    Shed app icon.
+    Lane: soft 3D object-character. Metaphor: a project folder stepping out of
+    its old skin (object + action + emotion = project folder + sheds the
+    weight it does not need + relieved, lighter).
+    Hook: shape pun, the shed skin left behind as a limp see-through copy of
+    the folder. Palette: violet_tech (#4237C6 dominant, #3FA1F9 contrast,
+    #F8F6F5 neutral, #121212 ink). Light from the upper left.
+    macOS grid: 824 px body on a 1024 canvas.
+  -->
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#6C73F2"/>
+      <stop offset="1" stop-color="#3A2FB8"/>
+    </linearGradient>
+    <radialGradient id="lift" cx="0.36" cy="0.3" r="0.72">
+      <stop offset="0" stop-color="#FFFFFF" stop-opacity="0.2"/>
+      <stop offset="1" stop-color="#FFFFFF" stop-opacity="0"/>
+    </radialGradient>
+    <linearGradient id="back" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#6CC0FF"/>
+      <stop offset="1" stop-color="#2E8BE8"/>
+    </linearGradient>
+    <linearGradient id="front" x1="0.2" y1="0" x2="0.5" y2="1">
+      <stop offset="0" stop-color="#FFFFFF"/>
+      <stop offset="0.6" stop-color="#F8F6F5"/>
+      <stop offset="1" stop-color="#E3E0F4"/>
+    </linearGradient>
+    <linearGradient id="skin" x1="0" y1="0" x2="0.3" y2="1">
+      <stop offset="0" stop-color="#FFFFFF" stop-opacity="0.42"/>
+      <stop offset="1" stop-color="#FFFFFF" stop-opacity="0.16"/>
+    </linearGradient>
+    <filter id="body" x="-10%" y="-10%" width="120%" height="125%">
+      <feGaussianBlur in="SourceAlpha" stdDeviation="14"/>
+      <feOffset dy="16"/>
+      <feComponentTransfer><feFuncA type="linear" slope="0.28"/></feComponentTransfer>
+      <feMerge><feMergeNode/><feMergeNode in="SourceGraphic"/></feMerge>
+    </filter>
+    <filter id="drop" x="-30%" y="-30%" width="160%" height="170%">
+      <feGaussianBlur in="SourceAlpha" stdDeviation="22"/>
+      <feOffset dx="6" dy="24"/>
+      <feComponentTransfer><feFuncA type="linear" slope="0.32"/></feComponentTransfer>
+      <feFlood flood-color="#160C6A"/>
+      <feComposite operator="in" in2="SourceAlpha"/>
+      <feMerge><feMergeNode/><feMergeNode in="SourceGraphic"/></feMerge>
+    </filter>
+    <clipPath id="squircle"><rect x="100" y="100" width="824" height="824" rx="186"/></clipPath>
+  </defs>
+
+  <!-- body: edge-to-edge within the macOS squircle -->
+  <g filter="url(#body)">
+    <rect x="100" y="100" width="824" height="824" rx="186" fill="url(#bg)"/>
+  </g>
+  <g clip-path="url(#squircle)">
+    <rect x="100" y="100" width="824" height="824" fill="url(#lift)"/>
+
+    <!-- the hook: the old skin, a limp see-through copy of the folder (tab
+         and all, mirrored as it peeled off) slumped at the lower right, its bottom edge gone soft -->
+    <g transform="translate(46 64) rotate(9 651 600)">
+      <path transform="translate(1302 0) scale(-1 1)" d="M452 452 a40 40 0 0 1 40 -40 h104 a40 40 0 0 1 32 15 l22 27 h192 a40 40 0 0 1 40 40 v300
+               q-36 26 -76 2 q-40 -24 -80 4 q-40 28 -80 2 q-40 -26 -80 4 q-40 28 -74 0 z"
+            fill="url(#skin)" stroke="#FFFFFF" stroke-opacity="0.6" stroke-width="12" stroke-linejoin="round"/>
+    </g>
+
+    <rect x="100" y="100" width="824" height="824" rx="186" fill="none" stroke="#FFFFFF" stroke-opacity="0.2" stroke-width="6"/>
+  </g>
+
+  <!-- subject: the fresh folder, stepping up and out to the upper left -->
+  <g transform="rotate(-8 400 470) translate(-22 -18)" filter="url(#drop)">
+    <!-- back panel with its tab -->
+    <path d="M176 296 a46 46 0 0 1 46 -46 h124 a46 46 0 0 1 36 17 l26 33 h220 a46 46 0 0 1 46 46 v318 H176 z" fill="url(#back)"/>
+    <!-- front panel: the character's body -->
+    <rect x="152" y="350" width="540" height="378" rx="68" fill="url(#front)"/>
+    <!-- broad upper-left highlight on the front -->
+    <path d="M206 384 Q320 370 452 374" stroke="#FFFFFF" stroke-width="20" stroke-linecap="round" fill="none" opacity="0.9"/>
+    <!-- face: eyes closed in relief, a small open smile -->
+    <path d="M282 530 q40 -52 80 0" stroke="#121212" stroke-width="30" stroke-linecap="round" fill="none"/>
+    <path d="M436 530 q40 -52 80 0" stroke="#121212" stroke-width="30" stroke-linecap="round" fill="none"/>
+    <path d="M362 600 q38 44 76 0 z" fill="#121212" stroke="#121212" stroke-width="14" stroke-linejoin="round"/>
+    <ellipse cx="258" cy="600" rx="34" ry="20" fill="#AC46EA" opacity="0.28"/>
+    <ellipse cx="542" cy="600" rx="34" ry="20" fill="#AC46EA" opacity="0.28"/>
+  </g>
+</svg>
