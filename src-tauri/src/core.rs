@@ -142,6 +142,12 @@ fn matches_marker(names: &[String], marker: &str) -> bool {
     }
 }
 
+/// A folder that is a project on its own: a git repository, or a project file
+/// other than loose scripts (a folder of .py files is not a project yet).
+fn is_project(names: &[String]) -> bool {
+    names.iter().any(|n| n == ".git") || RULES.iter().any(|r| r.markers.iter().any(|m| !matches!(*m, "*.py" | "*.ipynb") && matches_marker(names, m)))
+}
+
 fn rules_for(names: &[String]) -> Vec<&'static Rule> {
     RULES.iter().filter(|r| r.markers.iter().any(|m| matches_marker(names, m))).collect()
 }
@@ -255,33 +261,34 @@ fn refuse(env: &Env, root: &Path) -> Option<&'static str> {
 struct Walk<'a> {
     env: &'a Env,
     root: PathBuf,
-    /// The folder picked is one project (it has a .git or a project file),
-    /// not a folder of projects.
-    one_project: bool,
     found: Vec<Found>,
     taken: HashSet<PathBuf>,
 }
 
 impl Walk<'_> {
-    /// The project an item is listed under: the folder picked, or the
-    /// project folder in it, so that an app's node_modules and its
-    /// src-tauri/target, or all of a repo's __pycache__, show together.
-    fn project_of(&self, path: &Path) -> PathBuf {
+    /// Items are listed under the outermost project around them, so that an
+    /// app's node_modules and its src-tauri/target, or all of a repo's
+    /// __pycache__, show together. Outside any project: under the top
+    /// folder they are in.
+    fn project_of(&self, path: &Path, project: Option<&Path>) -> PathBuf {
+        if let Some(p) = project {
+            return p.into();
+        }
         match path.strip_prefix(&self.root).ok().and_then(|r| r.components().next()) {
-            Some(first) if !self.one_project && path != self.root.join(first) => self.root.join(first),
+            Some(first) if path != self.root.join(first) => self.root.join(first),
             _ => self.root.clone(),
         }
     }
 
-    fn add(&mut self, path: PathBuf, kind: &'static str, name: String) {
+    fn add(&mut self, path: PathBuf, kind: &'static str, name: String, project: Option<&Path>) {
         if self.taken.insert(path.clone()) {
             let maybe = MAYBE.contains(&name.rsplit('/').next().unwrap_or(&name));
-            let project = self.project_of(&path);
+            let project = self.project_of(&path, project);
             self.found.push(Found { path, kind, name, project, maybe });
         }
     }
 
-    fn dir(&mut self, dir: &Path, depth: usize) {
+    fn dir(&mut self, dir: &Path, project: Option<&Path>, depth: usize) {
         let Ok(rd) = std::fs::read_dir(dir) else { return };
         let mut entries: Vec<(String, bool)> = rd
             .flatten()
@@ -289,11 +296,12 @@ impl Walk<'_> {
             .collect();
         entries.sort();
         let names: Vec<String> = entries.iter().map(|(n, _)| n.clone()).collect();
+        let here = project.or(is_project(&names).then_some(dir));
         for r in rules_for(&names) {
             for d in r.dirs {
                 let p = dir.join(d);
                 if is_dir(&p) {
-                    self.add(p, r.kind, d.to_string());
+                    self.add(p, r.kind, d.to_string(), here);
                 }
             }
         }
@@ -311,11 +319,11 @@ impl Walk<'_> {
                 continue;
             }
             if name == "__pycache__" {
-                self.add(sub, "Python", name);
+                self.add(sub, "Python", name, here);
             } else if is_venv(&sub) {
-                self.add(sub, "venv", name);
+                self.add(sub, "venv", name, here);
             } else if depth < MAX_DEPTH {
-                self.dir(&sub, depth + 1);
+                self.dir(&sub, here, depth + 1);
             }
         }
     }
@@ -329,16 +337,11 @@ pub fn scan(env: &Env, root: &Path) -> Scan {
         out.refused = Some(why.into());
         return out;
     }
-    let names = entry_names(&root);
-    let one_project = names.iter().any(|n| n == ".git") || !rules_for(&names).is_empty();
-    let mut walk = Walk { env, root: root.clone(), one_project, found: vec![], taken: HashSet::new() };
+    let mut walk = Walk { env, root: root.clone(), found: vec![], taken: HashSet::new() };
     match classify(&root) {
         // The folder picked is itself build output (a node_modules, a .venv).
-        Some((kind, name, project)) => {
-            walk.add(root.clone(), kind, name);
-            walk.found[0].project = project;
-        }
-        None => walk.dir(&root, 0),
+        Some((kind, name, project)) => walk.add(root.clone(), kind, name, Some(&project)),
+        None => walk.dir(&root, None, 0),
     }
     out.items = measure(group(walk.found), &cwds());
     out
@@ -731,37 +734,30 @@ pub fn still_cleanable(path: &Path) -> Result<(), String> {
     Ok(())
 }
 
-pub fn clean_items(env: &Env, root: &str, items: &[Item], trash: Trasher, progress: Progress) -> Record {
-    let paths: Vec<(PathBuf, u64)> = items
+/// Moves the given scan items and leftovers (by id) to the Trash, as one
+/// record. Each folder is checked again right before it moves; leftovers are
+/// looked up afresh, so history and anything blocked are never moved.
+pub fn clean(env: &Env, root: &str, items: &[Item], leftover_ids: &[String], trash: Trasher, progress: Progress) -> Record {
+    let mut paths: Vec<(PathBuf, u64, bool)> = items
         .iter()
         .flat_map(|i| {
             // ponytail: merged __pycache__ items split their size evenly; it only feeds the history's totals.
             let each = i.bytes / i.paths.len().max(1) as u64;
-            i.paths.iter().map(move |p| (PathBuf::from(p), each))
+            i.paths.iter().map(move |p| (PathBuf::from(p), each, true))
         })
         .collect();
-    run(env, root, paths, &|p| still_cleanable(p), trash, progress)
-}
-
-pub fn clean_leftovers(env: &Env, ids: &[String], trash: Trasher, progress: Progress) -> Record {
-    let fresh = assess(env);
-    let paths: Vec<(PathBuf, u64)> = fresh
-        .iter()
-        .filter(|l| ids.contains(&l.id) && l.blocked.is_none())
-        .flat_map(|l| l.paths.iter().map(|p| (PathBuf::from(p), leftover_size(Path::new(p)))))
-        .collect();
-    // The list was just built from fixed locations, so it is its own check.
-    run(env, "", paths, &|p| if std::fs::symlink_metadata(p).is_ok() { Ok(()) } else { Err("gone".into()) }, trash, progress)
-}
-
-type Check<'a> = &'a dyn Fn(&Path) -> Result<(), String>;
-
-fn run(env: &Env, root: &str, paths: Vec<(PathBuf, u64)>, check: Check, trash: Trasher, progress: Progress) -> Record {
+    if !leftover_ids.is_empty() {
+        for l in assess(env).iter().filter(|l| leftover_ids.contains(&l.id) && l.blocked.is_none()) {
+            paths.extend(l.paths.iter().map(|p| (PathBuf::from(p), leftover_size(Path::new(p)), false)));
+        }
+    }
     let mut rec = Record { time: now_ms(), root: root.into(), ..Default::default() };
     let total = paths.len();
-    for (i, (p, bytes)) in paths.into_iter().enumerate() {
+    for (i, (p, bytes, project)) in paths.into_iter().enumerate() {
         progress(i, total);
-        match check(&p).and_then(|_| trash(&p)) {
+        // Leftovers come from fixed locations just listed, so they only need to exist.
+        let check = if project { still_cleanable(&p) } else if std::fs::symlink_metadata(&p).is_ok() { Ok(()) } else { Err("gone".into()) };
+        match check.and_then(|_| trash(&p)) {
             Ok(to) => rec.done.push(Trashed { path: s(&p), trash: to.map(|t| s(&t)), bytes }),
             Err(error) => rec.failed.push(Failed { path: s(&p), error }),
         }
@@ -1060,7 +1056,7 @@ mod tests {
             Ok(None)
         };
         let ids: Vec<String> = ["codexSessions", "claudeSessions", "claudeCodeOld"].map(String::from).to_vec();
-        let rec = clean_leftovers(&e, &ids, &fake, &|_, _| {});
+        let rec = clean(&e, "", &[], &ids, &fake, &|_, _| {});
         if running(&processes()).claude {
             assert!(rec.done.is_empty());
         } else {
@@ -1087,7 +1083,7 @@ mod tests {
         // A folder that vanished since the scan is reported, not invented.
         items.push(Item { name: "target".into(), paths: vec![s(&p.join("gone/target"))], ..Default::default() });
         let steps = Mutex::new(vec![]);
-        let rec = clean_items(&e, &s(&p), &items, &fake, &|d, n| steps.lock().unwrap().push((d, n)));
+        let rec = clean(&e, &s(&p), &items, &[], &fake, &|d, n| steps.lock().unwrap().push((d, n)));
         assert_eq!(rec.done.len(), 2);
         assert_eq!(rec.failed.len(), 1);
         assert_eq!(steps.lock().unwrap().last(), Some(&(3, 3)));
@@ -1114,7 +1110,7 @@ mod tests {
             let to = bin.join("nm");
             fs::rename(from, &to).map(|_| Some(to)).map_err(|e| e.to_string())
         };
-        let rec = clean_items(&e, "", &scan(&e, &p).items, &fake, &|_, _| {});
+        let rec = clean(&e, "", &scan(&e, &p).items, &[], &fake, &|_, _| {});
         file(&p.join("node_modules/fresh/i.js"), 1); // npm install ran again
         let back = undo(&e, rec.time, &restore_moved).unwrap();
         assert_eq!(back.failed[0].error, "occupied");

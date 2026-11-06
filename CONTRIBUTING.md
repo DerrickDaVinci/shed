@@ -20,8 +20,9 @@ The UI is plain HTML, CSS and JS in `ui/` with no build step. Open `ui/index.htm
 |---|---|
 | `src-tauri/src/core.rs` | The project rules, scanning, AI leftovers, cleaning, history, undo, and the tests |
 | `src-tauri/src/trash.rs` | The system Trash (macOS) and Recycle Bin (Windows) |
-| `src-tauri/src/menu.rs` | The right-click entry: a Finder service, an Explorer verb |
-| `src-tauri/src/app.rs` | Settings and the commands the UI calls |
+| `src-tauri/macos/finder/` | The Finder extension (Objective-C, built by `build.rs`): the right-click entries on macOS, which open `shed://` links |
+| `src-tauri/src/menu.rs` | Switches the right-click entries on and off: the Finder extension, the Explorer verbs |
+| `src-tauri/src/app.rs` | Settings, the menu bar, `shed://` links and the commands the UI calls |
 | `src-tauri/src/main.rs` | The `shed` command line |
 
 ## Adding a project type

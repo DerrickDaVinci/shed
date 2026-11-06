@@ -1,0 +1,9 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 440 440" width="440" height="440">
+  <!-- Menu bar icon (a template image: black on transparent, macOS tints it).
+       The Shed snake as a silhouette: S-shaped body, round head, one eye. -->
+  <rect width="440" height="440" fill="#FFFFFF"/>
+  <path d="M330 372 C 240 400, 150 360, 196 300 C 236 250, 320 228, 268 160" fill="none" stroke="#000" stroke-width="64" stroke-linecap="round"/>
+  <ellipse cx="236" cy="132" rx="104" ry="84" fill="#000" transform="rotate(10 236 132)"/>
+  <circle cx="200" cy="124" r="22" fill="#FFFFFF"/>
+  <circle cx="276" cy="124" r="22" fill="#FFFFFF"/>
+</svg>

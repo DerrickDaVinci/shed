@@ -1,48 +1,42 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1024 1024" width="1024" height="1024">
   <!--
     Shed app icon.
-    Lane: soft 3D object-character. Metaphor: a project folder stepping out of
-    its old skin (object + action + emotion = project folder + sheds the
-    weight it does not need + relieved, lighter).
-    Hook: shape pun, the shed skin left behind as a limp see-through copy of
-    the folder. Palette: violet_tech (#4237C6 dominant, #3FA1F9 contrast,
-    #F8F6F5 neutral, #121212 ink). Light from the upper left.
+    Lane: soft 3D object-character. Metaphor: a snake that just slipped out
+    of its old skin (object + action + emotion = snake + sheds what it no
+    longer needs + cheeky, pleased with itself).
+    Hook: shape pun, the empty skin left behind, hollow eyes and all.
+    Palette: dark_professional (#121212 dominant, #AC46EA contrast, #F8F6F5
+    neutral) with one acid-lime accent on the tongue. Light from the upper left.
     macOS grid: 824 px body on a 1024 canvas.
   -->
   <defs>
     <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1">
-      <stop offset="0" stop-color="#6C73F2"/>
-      <stop offset="1" stop-color="#3A2FB8"/>
+      <stop offset="0" stop-color="#262033"/>
+      <stop offset="1" stop-color="#0E0D12"/>
     </linearGradient>
-    <radialGradient id="lift" cx="0.36" cy="0.3" r="0.72">
-      <stop offset="0" stop-color="#FFFFFF" stop-opacity="0.2"/>
-      <stop offset="1" stop-color="#FFFFFF" stop-opacity="0"/>
+    <radialGradient id="glow" cx="0.62" cy="0.5" r="0.55">
+      <stop offset="0" stop-color="#AC46EA" stop-opacity="0.42"/>
+      <stop offset="1" stop-color="#AC46EA" stop-opacity="0"/>
     </radialGradient>
-    <linearGradient id="back" x1="0" y1="0" x2="0" y2="1">
-      <stop offset="0" stop-color="#6CC0FF"/>
-      <stop offset="1" stop-color="#2E8BE8"/>
+    <linearGradient id="scale" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#D88BFF"/>
+      <stop offset="0.5" stop-color="#AC46EA"/>
+      <stop offset="1" stop-color="#6A1FC2"/>
     </linearGradient>
-    <linearGradient id="front" x1="0.2" y1="0" x2="0.5" y2="1">
-      <stop offset="0" stop-color="#FFFFFF"/>
-      <stop offset="0.6" stop-color="#F8F6F5"/>
-      <stop offset="1" stop-color="#E3E0F4"/>
-    </linearGradient>
-    <linearGradient id="skin" x1="0" y1="0" x2="0.3" y2="1">
-      <stop offset="0" stop-color="#FFFFFF" stop-opacity="0.42"/>
-      <stop offset="1" stop-color="#FFFFFF" stop-opacity="0.16"/>
+    <linearGradient id="belly" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#E7C2FF"/>
+      <stop offset="1" stop-color="#C487F5"/>
     </linearGradient>
     <filter id="body" x="-10%" y="-10%" width="120%" height="125%">
       <feGaussianBlur in="SourceAlpha" stdDeviation="14"/>
       <feOffset dy="16"/>
-      <feComponentTransfer><feFuncA type="linear" slope="0.28"/></feComponentTransfer>
+      <feComponentTransfer><feFuncA type="linear" slope="0.3"/></feComponentTransfer>
       <feMerge><feMergeNode/><feMergeNode in="SourceGraphic"/></feMerge>
     </filter>
     <filter id="drop" x="-30%" y="-30%" width="160%" height="170%">
-      <feGaussianBlur in="SourceAlpha" stdDeviation="22"/>
-      <feOffset dx="6" dy="24"/>
-      <feComponentTransfer><feFuncA type="linear" slope="0.32"/></feComponentTransfer>
-      <feFlood flood-color="#160C6A"/>
-      <feComposite operator="in" in2="SourceAlpha"/>
+      <feGaussianBlur in="SourceAlpha" stdDeviation="20"/>
+      <feOffset dx="6" dy="22"/>
+      <feComponentTransfer><feFuncA type="linear" slope="0.55"/></feComponentTransfer>
       <feMerge><feMergeNode/><feMergeNode in="SourceGraphic"/></feMerge>
     </filter>
     <clipPath id="squircle"><rect x="100" y="100" width="824" height="824" rx="186"/></clipPath>
@@ -53,32 +47,54 @@
     <rect x="100" y="100" width="824" height="824" rx="186" fill="url(#bg)"/>
   </g>
   <g clip-path="url(#squircle)">
-    <rect x="100" y="100" width="824" height="824" fill="url(#lift)"/>
+    <rect x="100" y="100" width="824" height="824" fill="url(#glow)"/>
 
-    <!-- the hook: the old skin, a limp see-through copy of the folder (tab
-         and all, mirrored as it peeled off) slumped at the lower right, its bottom edge gone soft -->
-    <g transform="translate(46 64) rotate(9 651 600)">
-      <path transform="translate(1302 0) scale(-1 1)" d="M452 452 a40 40 0 0 1 40 -40 h104 a40 40 0 0 1 32 15 l22 27 h192 a40 40 0 0 1 40 40 v300
-               q-36 26 -76 2 q-40 -24 -80 4 q-40 28 -80 2 q-40 -26 -80 4 q-40 28 -74 0 z"
-            fill="url(#skin)" stroke="#FFFFFF" stroke-opacity="0.6" stroke-width="12" stroke-linejoin="round"/>
+    <!-- the hook: the old skin, limp and see-through, hollow eyes staring -->
+    <g opacity="0.9">
+      <path d="M150 800 C 300 840, 420 760, 360 650 C 300 545, 230 470, 330 410"
+            fill="none" stroke="#F8F6F5" stroke-opacity="0.2" stroke-width="112" stroke-linecap="round"/>
+      <path d="M150 800 C 300 840, 420 760, 360 650 C 300 545, 230 470, 330 410"
+            fill="none" stroke="#F8F6F5" stroke-opacity="0.45" stroke-width="10" stroke-dasharray="2 34" stroke-linecap="round" transform="translate(0 0)"/>
+      <ellipse cx="350" cy="350" rx="122" ry="100" transform="rotate(-14 350 350)" fill="#F8F6F5" fill-opacity="0.22" stroke="#F8F6F5" stroke-opacity="0.5" stroke-width="10"/>
+      <ellipse cx="305" cy="340" rx="20" ry="26" fill="#0E0D12" fill-opacity="0.85"/>
+      <ellipse cx="385" cy="322" rx="20" ry="26" fill="#0E0D12" fill-opacity="0.85"/>
     </g>
 
-    <rect x="100" y="100" width="824" height="824" rx="186" fill="none" stroke="#FFFFFF" stroke-opacity="0.2" stroke-width="6"/>
+    <rect x="100" y="100" width="824" height="824" rx="186" fill="none" stroke="#FFFFFF" stroke-opacity="0.12" stroke-width="6"/>
   </g>
 
-  <!-- subject: the fresh folder, stepping up and out to the upper left -->
-  <g transform="rotate(-8 400 470) translate(-22 -18)" filter="url(#drop)">
-    <!-- back panel with its tab -->
-    <path d="M176 296 a46 46 0 0 1 46 -46 h124 a46 46 0 0 1 36 17 l26 33 h220 a46 46 0 0 1 46 46 v318 H176 z" fill="url(#back)"/>
-    <!-- front panel: the character's body -->
-    <rect x="152" y="350" width="540" height="378" rx="68" fill="url(#front)"/>
-    <!-- broad upper-left highlight on the front -->
-    <path d="M206 384 Q320 370 452 374" stroke="#FFFFFF" stroke-width="20" stroke-linecap="round" fill="none" opacity="0.9"/>
-    <!-- face: eyes closed in relief, a small open smile -->
-    <path d="M282 530 q40 -52 80 0" stroke="#121212" stroke-width="30" stroke-linecap="round" fill="none"/>
-    <path d="M436 530 q40 -52 80 0" stroke="#121212" stroke-width="30" stroke-linecap="round" fill="none"/>
-    <path d="M362 600 q38 44 76 0 z" fill="#121212" stroke="#121212" stroke-width="14" stroke-linejoin="round"/>
-    <ellipse cx="258" cy="600" rx="34" ry="20" fill="#AC46EA" opacity="0.28"/>
-    <ellipse cx="542" cy="600" rx="34" ry="20" fill="#AC46EA" opacity="0.28"/>
+  <!-- subject: the fresh snake, coiled into an S, head up and turned back
+       toward the skin it just left -->
+  <g filter="url(#drop)">
+    <path d="M820 830 C 640 880, 470 800, 560 690 C 640 600, 790 560, 700 440"
+          fill="none" stroke="url(#scale)" stroke-width="128" stroke-linecap="round"/>
+    <!-- belly stripe -->
+    <path d="M790 838 C 640 870, 500 800, 570 712"
+          fill="none" stroke="url(#belly)" stroke-width="34" stroke-linecap="round" opacity="0.75"/>
+    <!-- head -->
+    <g transform="rotate(10 640 365)">
+      <ellipse cx="640" cy="365" rx="172" ry="140" fill="url(#scale)"/>
+      <!-- broad upper-left highlight -->
+      <path d="M520 300 Q 580 250 660 252" stroke="#FFFFFF" stroke-opacity="0.55" stroke-width="22" stroke-linecap="round" fill="none"/>
+      <!-- eyes: white, half-lidded, glancing back at the old skin -->
+      <clipPath id="eyeL"><ellipse cx="572" cy="345" rx="44" ry="50"/></clipPath>
+      <clipPath id="eyeR"><ellipse cx="690" cy="345" rx="44" ry="50"/></clipPath>
+      <g clip-path="url(#eyeL)">
+        <ellipse cx="572" cy="345" rx="44" ry="50" fill="#F8F6F5"/>
+        <circle cx="552" cy="360" r="25" fill="#121212"/>
+        <circle cx="560" cy="351" r="8" fill="#FFFFFF"/>
+        <path d="M520 290 H 630 V 332 Q 572 312 520 344 Z" fill="#8A2FCB"/>
+      </g>
+      <g clip-path="url(#eyeR)">
+        <ellipse cx="690" cy="345" rx="44" ry="50" fill="#F8F6F5"/>
+        <circle cx="670" cy="360" r="25" fill="#121212"/>
+        <circle cx="678" cy="351" r="8" fill="#FFFFFF"/>
+        <path d="M640 290 H 750 V 344 Q 700 312 640 332 Z" fill="#8A2FCB"/>
+      </g>
+      <!-- grin with one fang, tongue out -->
+      <path d="M560 430 Q 640 486 730 420" stroke="#121212" stroke-width="20" stroke-linecap="round" fill="none"/>
+      <path d="M700 438 l 10 34 l 14 -40 z" fill="#F8F6F5"/>
+      <path d="M612 452 q -8 52 -46 74 m 46 -74 q 18 46 -6 84" stroke="#60F32E" stroke-width="20" stroke-linecap="round" fill="none"/>
+    </g>
   </g>
 </svg>

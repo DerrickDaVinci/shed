@@ -1,98 +1,51 @@
-//! The right-click entry. On macOS a Finder service ("Clean with Shed" under
-//! Quick Actions / Services) declared in Info.plist: Finder hands the selected
-//! folders to the running app, or launches it first. On Windows a verb for
-//! folders in the current user's registry, which starts Shed with
-//! `--open <folder>`; a running Shed picks it up through single-instance.
+//! The right-click entries.
+//!
+//! macOS: a Finder extension (macos/finder, built by build.rs and shipped in
+//! Shed.app/Contents/PlugIns) adds "Clean This Mac with Shed" to the Desktop
+//! and every folder's background menu, and "Clean with Shed" on folders. It
+//! opens shed:// links; the app handles them. Here we only switch it on/off.
+//!
+//! Windows: verbs in the current user's registry for folders, folder
+//! backgrounds and the Desktop background, starting Shed with
+//! `--open <folder>` or `--computer`; a running Shed picks them up through
+//! single-instance.
 
 #[cfg(target_os = "macos")]
-pub use mac::register;
-
-#[cfg(target_os = "macos")]
-mod mac {
-    use objc2::rc::Retained;
-    use objc2::runtime::{AnyObject, NSObject};
-    use objc2::{define_class, msg_send, ClassType, MainThreadMarker};
-    use objc2_app_kit::{NSApplication, NSPasteboard, NSPasteboardTypeFileURL, NSUpdateDynamicServices};
-    use objc2_foundation::{NSString, NSURL};
-    use std::sync::OnceLock;
-
-    type Handler = Box<dyn Fn(Vec<String>) + Send + Sync>;
-    static HANDLER: OnceLock<Handler> = OnceLock::new();
-
-    define_class!(
-        #[unsafe(super(NSObject))]
-        #[name = "ShedServiceProvider"]
-        struct Provider;
-
-        impl Provider {
-            /// NSMessage "cleanFolders" in Info.plist.
-            #[unsafe(method(cleanFolders:userData:error:))]
-            fn clean_folders(&self, pb: &NSPasteboard, _data: Option<&NSString>, _error: *mut *mut NSString) {
-                if let Some(h) = HANDLER.get() {
-                    h(file_paths(pb));
-                }
-            }
-        }
-    );
-
-    fn file_paths(pb: &NSPasteboard) -> Vec<String> {
-        let ty = unsafe { NSPasteboardTypeFileURL };
-        let Some(items) = pb.pasteboardItems() else { return vec![] };
-        items
-            .iter()
-            .filter_map(|it| {
-                let text = it.stringForType(ty)?;
-                let url = NSURL::URLWithString(&text)?;
-                // Finder may send file reference URLs (file:///.file/id=…).
-                Some(url.filePathURL()?.path()?.to_string())
-            })
-            .collect()
-    }
-
-    /// Call once on the main thread while the app starts.
-    pub fn register(handler: impl Fn(Vec<String>) + Send + Sync + 'static) {
-        let _ = HANDLER.set(Box::new(handler));
-        let Some(mtm) = MainThreadMarker::new() else { return };
-        let provider: Retained<Provider> = unsafe { msg_send![Provider::class(), new] };
-        let obj: &AnyObject = &provider;
-        unsafe { NSApplication::sharedApplication(mtm).setServicesProvider(Some(obj)) };
-        std::mem::forget(provider); // lives as long as the app
-        NSUpdateDynamicServices();
-    }
-}
-
-#[cfg(windows)]
-pub use win::set;
-
-#[cfg(windows)]
-mod win {
+pub fn set(on: bool, _zh: bool) {
     use std::process::Command;
+    // .../Shed.app/Contents/MacOS/shed -> .../Shed.app/Contents/PlugIns/ShedFinder.appex
+    let appex = std::env::current_exe().ok().and_then(|e| Some(e.parent()?.parent()?.join("PlugIns/ShedFinder.appex")));
+    let Some(appex) = appex.filter(|p| p.exists()) else { return }; // not running from the bundle
+    let _ = Command::new("pluginkit").arg("-a").arg(&appex).status();
+    let _ = Command::new("pluginkit").args(["-e", if on { "use" } else { "ignore" }, "-i", "app.shed.desktop.finder"]).status();
+}
 
-    const KEYS: [(&str, &str); 2] = [
-        // Right-click on a folder…
-        (r"HKCU\Software\Classes\Directory\shell\Shed", "%1"),
-        // …and on the empty space inside an open folder.
-        (r"HKCU\Software\Classes\Directory\Background\shell\Shed", "%V"),
+#[cfg(windows)]
+pub fn set(on: bool, zh: bool) {
+    use std::os::windows::process::CommandExt;
+    use std::process::Command;
+    let reg = |args: &[&str]| Command::new("reg").args(args).creation_flags(0x0800_0000).output().is_ok_and(|o| o.status.success());
+    let Ok(exe) = std::env::current_exe() else { return };
+    let exe = exe.to_string_lossy().into_owned();
+    let (folder, computer) = if zh { ("用 Shed 清理", "用 Shed 清理这台电脑") } else { ("Clean with Shed", "Clean This PC with Shed") };
+    let keys = [
+        (r"HKCU\Software\Classes\Directory\shell\Shed", folder, "--open \"%1\""),
+        (r"HKCU\Software\Classes\Directory\Background\shell\Shed", folder, "--open \"%V\""),
+        (r"HKCU\Software\Classes\DesktopBackground\Shell\Shed", computer, "--computer"),
     ];
-
-    fn reg(args: &[&str]) -> bool {
-        use std::os::windows::process::CommandExt;
-        Command::new("reg").args(args).creation_flags(0x0800_0000).output().is_ok_and(|o| o.status.success())
-    }
-
-    /// Adds (with this label) or removes the entry. Re-adding refreshes the
-    /// path, so a moved or updated Shed keeps working.
-    pub fn set(on: bool, label: &str) -> bool {
-        let Ok(exe) = std::env::current_exe() else { return false };
-        let exe = exe.to_string_lossy().into_owned();
-        KEYS.iter().all(|(key, arg)| {
-            if !on {
-                return !reg(&["query", key]) || reg(&["delete", key, "/f"]);
+    for (key, label, args) in keys {
+        if !on {
+            if reg(&["query", key]) {
+                reg(&["delete", key, "/f"]);
             }
-            let icon = format!("\"{exe}\",0");
-            let cmd = format!("\"{exe}\" --open \"{arg}\"");
-            let command = format!(r"{key}\command");
-            reg(&["add", key, "/ve", "/d", label, "/f"]) && reg(&["add", key, "/v", "Icon", "/d", &icon, "/f"]) && reg(&["add", &command, "/ve", "/d", &cmd, "/f"])
-        })
+            continue;
+        }
+        let icon = format!("\"{exe}\",0");
+        let cmd = format!("\"{exe}\" {args}");
+        let command = format!(r"{key}\command");
+        let _ = reg(&["add", key, "/ve", "/d", label, "/f"]) && reg(&["add", key, "/v", "Icon", "/d", &icon, "/f"]) && reg(&["add", &command, "/ve", "/d", &cmd, "/f"]);
     }
 }
+
+#[cfg(not(any(target_os = "macos", windows)))]
+pub fn set(_on: bool, _zh: bool) {}

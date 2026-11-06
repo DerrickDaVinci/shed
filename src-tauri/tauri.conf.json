@@ -29,20 +29,27 @@
     "active": true,
     "targets": "all",
     "category": "Utility",
-    "shortDescription": "Right-click a folder to clean build output and AI-tool leftovers.",
+    "shortDescription": "Right-click to clean build output and AI-tool leftovers.",
     "longDescription": "Shed finds what your projects and AI coding agents leave behind (node_modules, target, .next, virtualenvs, old agent downloads, download caches) and moves it to the Trash after you check the list. Right-click any folder in Finder or Explorer. Everything runs offline and every clean can be undone.",
     "copyright": "MIT License",
-    "icon": ["icons/32x32.png", "icons/128x128.png", "icons/128x128@2x.png", "icons/icon.icns", "icons/icon.ico"],
+    "icon": [
+      "icons/32x32.png",
+      "icons/128x128.png",
+      "icons/128x128@2x.png",
+      "icons/icon.icns",
+      "icons/icon.ico"
+    ],
     "macOS": {
       "minimumSystemVersion": "11.0",
       "signingIdentity": "-",
       "files": {
-        "Resources/en.lproj/ServicesMenu.strings": "./macos/en.lproj/ServicesMenu.strings",
-        "Resources/zh-Hans.lproj/ServicesMenu.strings": "./macos/zh-Hans.lproj/ServicesMenu.strings"
+        "PlugIns/ShedFinder.appex": "./macos/finder/build/ShedFinder.appex"
       }
     },
     "windows": {
-      "nsis": { "installerHooks": "./windows/hooks.nsh" }
+      "nsis": {
+        "installerHooks": "./windows/hooks.nsh"
+      }
     }
   }
 }

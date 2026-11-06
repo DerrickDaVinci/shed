@@ -55,7 +55,7 @@ fn cli(args: &[String]) -> i32 {
             let ticked: Vec<core::Item> = scan.items.iter().filter(|i| i.selected).cloned().collect();
             let total: u64 = ticked.iter().map(|i| i.bytes).sum();
             if args[0] == "clean" && args.iter().any(|a| a == "--apply") {
-                let rec = core::clean_items(&env, &scan.root, &ticked, &trash::to_trash, &|_, _| {});
+                let rec = core::clean(&env, &scan.root, &ticked, &[], &trash::to_trash, &|_, _| {});
                 rec.failed.iter().for_each(|f| eprintln!("not moved ({}): {}", f.error, f.path));
                 println!("moved {} folders to the Trash, {} (empty the Trash to free the space)", rec.done.len(), human(rec.bytes()));
                 i32::from(!rec.failed.is_empty())

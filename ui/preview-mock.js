@@ -33,7 +33,7 @@
     { id: 'codexScratch', group: 'history', paths: [`${home}/Documents/Codex`], bytes: 1.1e9, selected: false, blocked: 'keep' },
     { id: 'claudeSessions', group: 'history', paths: [`${home}/.claude/projects`], bytes: 847e6, selected: false, blocked: 'keep' },
   ];
-  // #scan,zh,dark in the address opens straight on a scan, in Chinese, dark (for screenshots).
+  // #scan,zh,dark in the address opens straight on a whole-computer scan, in Chinese, dark (for screenshots).
   const opt = (k) => location.hash.slice(1).split(',').includes(k);
   let settings = { lang: opt('zh') ? 'zh' : opt('en') ? 'en' : 'auto', theme: opt('dark') ? 'dark' : opt('light') ? 'light' : 'auto', accent: '', recent: [`${home}/Desktop`, `${home}/code/experiments`], contextMenu: true };
   const history = [];
@@ -42,16 +42,11 @@
   const handlers = {
     info: () => ({ version: '0.1.0', platform: 'macos', home, settings, places: [P, `${home}/Desktop`, `${home}/Documents`] }),
     set_settings: (a) => (settings = a.settings),
-    scan: async (a) => (await wait(500), { roots: a.roots, refused: [], items: items.map((x) => ({ ...x })) }),
+    scan: async (a) => (await wait(500), { roots: a.computer ? [home] : a.roots, computer: a.computer, refused: [], items: items.map((x) => ({ ...x })), leftovers: a.computer ? left.map((x) => ({ ...x })) : [] }),
     clean: async (a) => {
       await wait(700);
-      const rec = { time: Date.now(), root: P, done: a.ids.map((i) => ({ path: items[i].paths[0], trash: null, bytes: items[i].bytes })), failed: [], undone: false };
-      history.unshift(rec);
-      return rec;
-    },
-    leftovers: async () => (await wait(400), left.map((x) => ({ ...x }))),
-    clean_leftovers: async (a) => {
-      const rec = { time: Date.now(), root: '', done: left.filter((l) => a.ids.includes(l.id)).map((l) => ({ path: l.paths[0], bytes: l.bytes })), failed: [], undone: false };
+      const done = [...a.ids.map((i) => items[i]), ...left.filter((l) => a.leftoverIds.includes(l.id))].map((x) => ({ path: x.paths[0], trash: null, bytes: x.bytes }));
+      const rec = { time: Date.now(), root: '', done, failed: [], undone: false };
       history.unshift(rec);
       return rec;
     },
@@ -61,7 +56,7 @@
       r.undone = true;
       return { ...r, failed: [] };
     },
-    take_pending: () => (opt('scan') && !scanned ? ((scanned = true), [P]) : []),
+    take_pending: () => (opt('scan') && !scanned ? ((scanned = true), { computer: true, folders: [] }) : { computer: false, folders: [] }),
     pick_folder: () => P,
     reveal: () => {},
     open_trash: () => {},

@@ -11,16 +11,23 @@
   // ------------------------------------------------------------ copy
   const STR = {
     tagline: ['蜕 · 清掉看不见的垃圾', 'Clean what you never see'],
-    navClean: ['清理文件夹', 'Clean a folder'], navLeftovers: ['AI 遗留', 'AI leftovers'], navHistory: ['记录', 'History'], navSettings: ['设置', 'Settings'], navAbout: ['关于', 'About'],
-    cleanTitle: ['清理文件夹', 'Clean a folder'],
-    cleanSub: ['选一个放项目的文件夹，Shed 找出里面能重新生成的东西：依赖、构建产物、缓存。', 'Pick a folder with projects. Shed finds what your tools can rebuild: dependencies, build output, caches.'],
+    navClean: ['清理', 'Clean'], navHistory: ['记录', 'History'], navSettings: ['设置', 'Settings'], navAbout: ['关于', 'About'],
+    cleanTitle: ['清理', 'Clean'],
+    cleanSub: ['Shed 找出项目里能重新生成的东西（依赖、构建产物、缓存），以及 AI 工具在项目之外留下的东西。', 'Shed finds what your tools can rebuild in your projects (dependencies, build output, caches) and what AI tools leave outside them.'],
+    heroTitle: ['清理整台电脑', 'Clean this whole computer'],
+    heroSub: ['扫描你的用户文件夹里的所有项目，加上 AI 编程工具和包管理器留下的东西。先列清单，你勾选后才会移到废纸篓。', 'Every project in your home folder, plus what AI coding tools and package managers leave behind. A list first; nothing moves until you confirm.'],
+    heroBtn: ['开始扫描', 'Scan'],
+    orFolder: ['或者只清理一个文件夹', 'Or just one folder'],
+    computer: ['这台电脑', 'this computer'],
     pick: ['选择文件夹…', 'Choose Folder…'], rescan: ['重新扫描', 'Rescan'],
     dropTitle: ['把文件夹拖到这里', 'Drop a folder here'], dropSub: ['或者点这里选择。先列清单，你确认后才会移到废纸篓。', 'or click to choose. You see the list first; nothing moves until you confirm.'],
-    tipMac: ['以后可以直接在访达里右键任意文件夹 →「快速操作」或「服务」→「用 Shed 清理」。', 'Next time, right-click any folder in Finder → Quick Actions (or Services) → Clean with Shed.'],
-    tipWin: ['以后可以直接在资源管理器里右键文件夹 →「用 Shed 清理」（Windows 11 在「显示更多选项」里）。', 'Next time, right-click a folder in Explorer → Clean with Shed (on Windows 11 under Show more options).'],
+    tipMac: ['以后在桌面空白处右键 →「用 Shed 清理这台电脑」就行；右键文件夹是「用 Shed 清理」。', 'Next time, right-click the Desktop → Clean This Mac with Shed, or right-click a folder → Clean with Shed.'],
+    tipWin: ['以后在桌面空白处右键 →「用 Shed 清理这台电脑」就行；右键文件夹是「用 Shed 清理」（Windows 11 在「显示更多选项」里）。', 'Next time, right-click the Desktop → Clean This PC with Shed, or a folder → Clean with Shed (on Windows 11 under Show more options).'],
     quick: ['常用位置', 'Usual places'], recent: ['最近扫描', 'Recent'],
     scanning: (p) => (zh ? `正在扫描 ${p}…` : `Scanning ${p}…`),
-    found: (n, b, roots) => (zh ? `${roots} 里找到 ${n} 项可以清理，共 ${b}。` : `${n} things to clean in ${roots}, ${b} in all.`),
+    scanningAll: ['正在扫描整台电脑，通常几秒钟…', 'Scanning this computer, usually a few seconds…'],
+    g_projects: ['项目里的构建产物', 'Build output in projects'],
+    found: (n, b, roots) => (zh ? `${roots}${/[\u4e00-\u9fff]$/.test(roots) ? '' : ' '}里找到 ${n} 项可以清理，共 ${b}。` : `${n} things to clean in ${roots}, ${b} in all.`),
     nothing: (roots) => (zh ? `${roots} 里没有找到可以清理的东西。很干净。` : `Nothing to clean in ${roots}. All tidy.`),
     selected: (n, b) => (zh ? `已选 <b>${n}</b> 项 · <b>${b}</b>` : `<b>${n}</b> selected · <b>${b}</b>`),
     toTrash: (b) => (zh ? `移到废纸篓 · ${b}` : `Move to Trash · ${b}`),
@@ -37,8 +44,6 @@
     places: (n) => (zh ? `${n} 处` : `${n} places`),
     reveal: ['在访达中显示', 'Show in Finder'],
     // leftovers
-    leftSub: ['AI 编程工具和包管理器在项目之外留下的东西。对话记录只显示占用，Shed 不会动。', 'What AI coding tools and package managers leave outside your projects. Conversation history is only shown; Shed never touches it.'],
-    recheck: ['重新检查', 'Check again'], measuring: ['正在测量…', 'Measuring…'], leftEmpty: ['没有找到 AI 工具遗留或缓存。', 'No AI tool leftovers or caches found.'],
     g_agent: ['AI 工具遗留', 'AI tool leftovers'], g_cache: ['下载缓存', 'Download caches'], g_history: ['对话记录（只显示，不会动）', 'Conversation history (shown, never touched)'],
     g_cacheS: ['清掉后，下次安装依赖时会重新下载。', 'Downloaded again the next time you install.'],
     runClaude: ['Claude 桌面版正在运行：和它有关的项目要先退出它才能清理。', 'The Claude app is running: quit it to clean its items.'],
@@ -78,13 +83,15 @@
     // history
     historySub: ['每次清理都记在这里。在清空废纸篓之前都能撤销。', 'Every clean is listed here. Undo works until the Trash is emptied.'],
     historyEmpty: ['还没有清理过。', 'Nothing cleaned yet.'],
-    leftName: ['AI 遗留和缓存', 'AI leftovers and caches'],
+    leftName: ['整台电脑', 'This computer'],
     folders: (n) => (zh ? `${n} 个文件夹` : `${n} folder${n === 1 ? '' : 's'}`),
     undone: ['已撤销', 'Undone'],
     // settings
     menuOn: ['右键菜单', 'Right-click menu'],
-    menuOnWin: ['在资源管理器里右键文件夹时显示「用 Shed 清理」。只写入当前用户的注册表，卸载时会移除。', 'Show "Clean with Shed" when you right-click a folder in Explorer. Written for your user only and removed on uninstall.'],
-    menuOnMac: ['在访达里右键文件夹 →「快速操作」或「服务」→「用 Shed 清理」。如果没看到：系统设置 → 键盘 → 键盘快捷键 → 服务 → 文件和文件夹，勾选「用 Shed 清理」。Shed 放进「应用程序」并打开过一次后才会出现。', 'Right-click a folder in Finder → Quick Actions (or Services) → Clean with Shed. Not there? System Settings → Keyboard → Keyboard Shortcuts → Services → Files and Folders, tick Clean with Shed. It appears once Shed is in Applications and has been opened.'],
+    menuOnWin: ['桌面空白处右键「用 Shed 清理这台电脑」，文件夹上右键「用 Shed 清理」。只写入当前用户的注册表，卸载时会移除。', 'Right-click the Desktop: Clean This PC with Shed; a folder: Clean with Shed. Written for your user only and removed on uninstall.'],
+    menuOnMac: ['桌面或访达窗口空白处右键「用 Shed 清理这台电脑」，文件夹上右键「用 Shed 清理」。这是一个访达扩展，也可以在 系统设置 → 通用 → 登录项与扩展 → 访达 里开关。', 'Right-click the Desktop or a Finder window: Clean This Mac with Shed; a folder: Clean with Shed. It is a Finder extension, also listed under System Settings → General → Login Items & Extensions → Finder.'],
+    login: ['开机自动启动', 'Open at login'], loginS: ['登录后待在菜单栏，随时点图标清理。', 'Waits in the menu bar after you log in, one click away.'],
+    nothingToUndo: ['没有可以撤销的清理。', 'Nothing to undo.'],
     lang: ['界面语言', 'Language'], theme: ['外观', 'Appearance'], followSystem: ['跟随系统', 'System'], light: ['浅色', 'Light'], dark: ['深色', 'Dark'],
     accent: ['主题色', 'Accent color'], accentS: ['按钮和开关用的颜色。最后一个可以自己选任何颜色。', 'Used for buttons and switches. Pick any color with the last one.'],
     // about
@@ -109,7 +116,8 @@
   };
 
   // ------------------------------------------------------------ helpers
-  const S = { info: null, found: null, off: new Set(), on: new Set(), left: null, leftOff: new Set(), leftOn: new Set(), lastRecord: null, roots: [] };
+  // found: the last scan (folders, or the whole computer with its leftovers).
+  const S = { info: null, found: null, off: new Set(), on: new Set(), leftOff: new Set(), leftOn: new Set(), lastRecord: null, roots: [], computer: false };
   const settings = () => S.info.settings;
   const tilde = (p) => (p && S.info && p.startsWith(S.info.home) ? '~' + p.slice(S.info.home.length) : p);
   const base = (p) => p.split(/[\\/]/).filter(Boolean).pop() || p;
@@ -161,19 +169,18 @@
   }
 
   // ------------------------------------------------------------ clean: scan
-  async function scan(roots) {
-    if (!roots.length) return;
+  async function scan(roots, computer = false) {
+    if (!roots.length && !computer) return;
     go('clean');
-    S.roots = roots;
-    S.off.clear();
-    S.on.clear();
+    Object.assign(S, { roots, computer });
+    [S.off, S.on, S.leftOff, S.leftOn].forEach((s) => s.clear());
     $('#start').hidden = true;
     $('#results').hidden = true;
     $('#scanning').hidden = false;
-    $('#scanningText').textContent = t('scanning', roots.map(tilde).join(', '));
+    $('#scanningText').textContent = computer ? t('scanningAll') : t('scanning', roots.map(tilde).join(', '));
     $('#cleanSub').textContent = '';
     try {
-      S.found = await invoke('scan', { roots });
+      S.found = await invoke('scan', { roots, computer });
     } finally {
       $('#scanning').hidden = true;
     }
@@ -182,6 +189,7 @@
     $('#rescan').hidden = false;
     renderResults();
   }
+  const rescan = () => scan(S.roots, S.computer);
 
   const ticked = (item, i) => !item.blocked && (item.selected ? !S.off.has(i) : S.on.has(i));
   const toggle = (item, i, on) => {
@@ -204,9 +212,11 @@
 
   function renderResults() {
     const f = S.found;
-    const roots = f.roots.map(tilde).join(', ');
-    const total = f.items.reduce((a, i) => a + i.bytes, 0);
-    $('#cleanSub').textContent = f.items.length ? t('found', f.items.length, bytes(total), roots) : t('nothing', roots);
+    const roots = f.computer ? t('computer') : f.roots.map(tilde).join(', ');
+    const open = f.leftovers.filter((l) => l.group !== 'history');
+    const total = f.items.reduce((a, i) => a + i.bytes, 0) + open.reduce((a, l) => a + l.bytes, 0);
+    const n = f.items.length + open.length;
+    $('#cleanSub').textContent = n ? t('found', n, bytes(total), roots) : t('nothing', roots);
     $('#refused').hidden = !f.refused.length;
     $('#refused').textContent = f.refused.map(([p, why]) => t('r_' + why) + tilde(p)).join('\n');
 
@@ -233,7 +243,9 @@
           <ul class="items">${ids.map((i) => row(f.items[i], i, project)).join('')}</ul></section>`;
       })
       .join('');
+    if (f.computer && f.items.length) $('#groups').insertAdjacentHTML('afterbegin', `<div class="group-title"><b>${esc(t('g_projects'))}</b><span>${bytes(f.items.reduce((a, i) => a + i.bytes, 0))}</span></div>`);
     $$('#groups input[data-mixed]').forEach((el) => (el.indeterminate = true));
+    renderLeftovers();
     renderBar();
   }
 
@@ -253,15 +265,21 @@
       <div class="acts"><button type="button" class="icon-btn" data-reveal="${esc(item.paths[0])}" title="${esc(t('reveal'))}">${ICON.reveal}</button></div></li>`;
   }
 
-  function renderBar() {
+  // Ticked scan items (positions) and leftovers (ids), and their size.
+  function selection() {
     const f = S.found;
     const ids = f.items.map((it, i) => i).filter((i) => ticked(f.items[i], i));
-    const b = ids.reduce((a, i) => a + f.items[i].bytes, 0);
-    $('#bar').hidden = !f.items.length;
-    $('#barText').innerHTML = t('selected', ids.length, bytes(b));
+    const leftoverIds = f.leftovers.filter(lticked).map((l) => l.id);
+    const b = ids.reduce((a, i) => a + f.items[i].bytes, 0) + f.leftovers.filter(lticked).reduce((a, l) => a + l.bytes, 0);
+    return { ids, leftoverIds, b, n: ids.length + leftoverIds.length };
+  }
+
+  function renderBar() {
+    const { b, n } = selection();
+    $('#bar').hidden = !S.found.items.length && !S.found.leftovers.some((l) => l.group !== 'history');
+    $('#barText').innerHTML = t('selected', n, bytes(b));
     $('#cleanBtn').textContent = t('toTrash', bytes(b));
-    $('#cleanBtn').disabled = !ids.length;
-    return ids;
+    $('#cleanBtn').disabled = !n;
   }
 
   $('#groups').addEventListener('click', (e) => {
@@ -284,10 +302,10 @@
   });
 
   $('#cleanBtn').addEventListener('click', async () => {
-    const ids = renderBar();
-    if (!ids.length) return;
-    const rec = await runClean(() => invoke('clean', { ids }));
-    if (rec) scan(S.roots);
+    const { ids, leftoverIds, n } = selection();
+    if (!n) return;
+    const rec = await runClean(() => invoke('clean', { ids, leftoverIds }));
+    if (rec) rescan();
   });
 
   // ------------------------------------------------------------ result sheet
@@ -338,32 +356,20 @@
     } catch (e) {
       return toast(String(e));
     }
+    undone(back);
+  }
+
+  function undone(back) {
     toast(back.failed.length ? t('undoneSome', back.done.length, back.failed.length) + ' · ' + back.failed.map((f) => `${base(f.path)}: ${t('e_' + f.error)}`).join('; ') : t('undoneOk', back.done.length));
-    if (S.found) scan(S.roots);
-    if (S.left) loadLeftovers();
+    if (S.found) rescan();
     renderHistory();
   }
 
-  // ------------------------------------------------------------ leftovers
-  async function loadLeftovers() {
-    $('#leftBusy').hidden = false;
-    $('#leftGroups').innerHTML = '';
-    $('#leftBar').hidden = true;
-    $('#runBanner').hidden = true;
-    S.leftOff.clear();
-    S.leftOn.clear();
-    try {
-      S.left = await invoke('leftovers');
-    } finally {
-      $('#leftBusy').hidden = true;
-    }
-    renderLeftovers();
-  }
-
+  // ------------------------------------------------------------ leftovers (whole computer)
   const lticked = (l) => !l.blocked && (l.selected ? !S.leftOff.has(l.id) : S.leftOn.has(l.id));
 
   function renderLeftovers() {
-    const L = S.left;
+    const L = S.found.leftovers;
     const run = [L.some((l) => l.blocked === 'quitClaude') ? t('runClaude') : '', L.some((l) => l.blocked === 'quitCodex') ? t('runCodex') : ''].filter(Boolean);
     $('#runBanner').hidden = !run.length;
     $('#runBanner').textContent = run.join(' ');
@@ -374,13 +380,7 @@
       return `<div class="group-title"><b>${esc(t('g_' + g))}</b><span>${g === 'cache' ? esc(t('g_cacheS')) + ' · ' : ''}${bytes(sum)}</span></div>
         <section class="proj"><ul class="items">${items.map(leftRow).join('')}</ul></section>`;
     };
-    $('#leftGroups').innerHTML = ['agent', 'cache', 'history'].map(group).join('') || `<p class="empty">${esc(t('leftEmpty'))}</p>`;
-    const on = L.filter(lticked);
-    const b = on.reduce((a, l) => a + l.bytes, 0);
-    $('#leftBar').hidden = !L.some((l) => l.group !== 'history');
-    $('#leftBarText').innerHTML = t('selected', on.length, bytes(b));
-    $('#leftBtn').textContent = t('toTrash', bytes(b));
-    $('#leftBtn').disabled = !on.length;
+    $('#leftGroups').innerHTML = ['agent', 'cache', 'history'].map(group).join('');
   }
 
   function leftRow(l) {
@@ -400,19 +400,13 @@
     const r = e.target.closest('[data-reveal]');
     if (r) return invoke('reveal', { path: r.dataset.reveal });
     const li = e.target.closest('li[data-id]');
-    const l = li && S.left.find((x) => x.id === li.dataset.id);
+    const l = li && S.found.leftovers.find((x) => x.id === li.dataset.id);
     if (!l || l.blocked) return;
     const now = !lticked(l);
     if (l.selected) now ? S.leftOff.delete(l.id) : S.leftOff.add(l.id);
     else now ? S.leftOn.add(l.id) : S.leftOn.delete(l.id);
     renderLeftovers();
-  });
-  $('#recheck').addEventListener('click', loadLeftovers);
-  $('#leftBtn').addEventListener('click', async () => {
-    const ids = S.left.filter(lticked).map((l) => l.id);
-    if (!ids.length) return;
-    await runClean(() => invoke('clean_leftovers', { ids }));
-    loadLeftovers();
+    renderBar();
   });
 
   // ------------------------------------------------------------ history
@@ -444,12 +438,13 @@
   // ------------------------------------------------------------ settings
   function renderSettings() {
     const s = settings();
+    $('#menuOnS').textContent = t(S.info.platform === 'windows' ? 'menuOnWin' : 'menuOnMac');
     $$('.seg[data-set]').forEach((seg) => seg.querySelectorAll('button').forEach((b) => b.setAttribute('aria-pressed', String(b.dataset.v === String(s[seg.dataset.set])))));
     $$('input[data-set]').forEach((i) => (i.checked = !!s[i.dataset.set]));
     const preset = $$('#swatches button').some((b) => b.dataset.c === (s.accent || ''));
     $$('#swatches button').forEach((b) => b.setAttribute('aria-pressed', String(b.dataset.c === (s.accent || ''))));
     $('#swatches .custom').classList.toggle('on', !preset);
-    $('#accentPick').value = s.accent || '#4A55D0';
+    $('#accentPick').value = s.accent || '#8B3FD9';
   }
   $$('input[data-set]').forEach((i) =>
     i.addEventListener('change', async () => {
@@ -490,7 +485,6 @@
     $('#app').dataset.page = page;
     $$('#nav button').forEach((b) => b.setAttribute('aria-current', b.dataset.page === page ? 'page' : 'false'));
     if (page === 'history') renderHistory();
-    if (page === 'leftovers' && !S.left) loadLeftovers();
   }
   $('#nav').addEventListener('click', (e) => {
     const b = e.target.closest('button[data-page]');
@@ -505,7 +499,8 @@
   };
   $('#pick').addEventListener('click', pickAndScan);
   $('#dropzone').addEventListener('click', pickAndScan);
-  $('#rescan').addEventListener('click', () => scan(S.roots));
+  $('#rescan').addEventListener('click', rescan);
+  $('#scanComputer').addEventListener('click', () => scan([], true));
   $('#start').addEventListener('click', (e) => {
     const b = e.target.closest('[data-root]');
     if (b) scan([b.dataset.root]);
@@ -522,7 +517,6 @@
   function renderAll() {
     if (S.found) renderResults();
     else renderStart();
-    if (S.left) renderLeftovers();
     renderSettings();
     if ($('#app').dataset.page === 'history') renderHistory();
   }
@@ -534,12 +528,16 @@
     if (type === 'drop' && ev.payload.paths?.length && $('#sheet').hidden) scan(ev.payload.paths);
   });
 
-  // Folders from Finder or Explorer (right-click), now or at launch.
+  // Right-clicks in Finder or Explorer (the Desktop, a folder), now or at launch.
   async function takePending() {
-    const paths = await invoke('take_pending');
-    if (paths.length && $('#sheet').hidden) scan(paths);
+    const r = await invoke('take_pending');
+    if (!$('#sheet').hidden) return;
+    if (r.computer) scan([], true);
+    else if (r.folders.length) scan(r.folders);
   }
-  T.event.listen('open-folders', takePending);
+  T.event.listen('open-request', takePending);
+  // "Undo Last Clean" in the menu bar.
+  T.event.listen('undone', (e) => (e.payload.Ok ? undone(e.payload.Ok) : toast(e.payload.Err === 'nothing' ? t('nothingToUndo') : e.payload.Err)));
   T.event.listen('progress', (e) => ($('#busyText').textContent = t('working', ...e.payload)));
 
   (async () => {

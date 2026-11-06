@@ -15,7 +15,6 @@
     </div>
     <nav id="nav">
       <button type="button" data-page="clean"><svg viewBox="0 0 24 24"><path d="M3.5 7.5a2 2 0 0 1 2-2H10l2 2.5h6.5a2 2 0 0 1 2 2v7.5a2 2 0 0 1-2 2h-13a2 2 0 0 1-2-2z"/><path d="M9 14.5h6"/></svg><span data-i18n="navClean"></span></button>
-      <button type="button" data-page="leftovers"><svg viewBox="0 0 24 24"><path d="M12 3.5 14 9l5.5 2-5.5 2-2 5.5-2-5.5-5.5-2L10 9z"/></svg><span data-i18n="navLeftovers"></span></button>
       <button type="button" data-page="history"><svg viewBox="0 0 24 24"><path d="M4.5 12a7.5 7.5 0 1 0 2.2-5.3"/><path d="M4.5 4.5v3h3"/><path d="M12 8.5V12l2.5 2"/></svg><span data-i18n="navHistory"></span></button>
       <button type="button" data-page="settings"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="3"/><path d="M12 3.5v2.2M12 18.3v2.2M20.5 12h-2.2M5.7 12H3.5M18 6l-1.6 1.6M7.6 16.4 6 18M18 18l-1.6-1.6M7.6 7.6 6 6"/></svg><span data-i18n="navSettings"></span></button>
       <button type="button" data-page="about"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="8.5"/><path d="M12 11v5M12 8h.01"/></svg><span data-i18n="navAbout"></span></button>
@@ -35,11 +34,16 @@
       </header>
 
       <div id="start">
+        <div class="hero">
+          <div><b data-i18n="heroTitle"></b><p data-i18n="heroSub"></p></div>
+          <button class="btn primary big" type="button" id="scanComputer" data-i18n="heroBtn"></button>
+        </div>
+        <p class="tip" id="menuTip"></p>
+        <div class="group-title"><b data-i18n="orFolder"></b></div>
         <button type="button" class="dropzone" id="dropzone">
           <svg viewBox="0 0 24 24"><path d="M3.5 7.5a2 2 0 0 1 2-2H10l2 2.5h6.5a2 2 0 0 1 2 2v7.5a2 2 0 0 1-2 2h-13a2 2 0 0 1-2-2z"/><path d="M12 11v5M9.5 13.5 12 11l2.5 2.5"/></svg>
           <b data-i18n="dropTitle"></b><span data-i18n="dropSub"></span>
         </button>
-        <p class="tip" id="menuTip"></p>
         <div class="group-title" id="placesTitle"><b data-i18n="quick"></b></div>
         <div class="chips" id="places"></div>
         <div class="group-title" id="recentTitle"><b data-i18n="recent"></b></div>
@@ -50,26 +54,13 @@
 
       <div id="results" hidden>
         <p class="banner" id="refused" hidden></p>
+        <p class="banner" id="runBanner" hidden></p>
         <div id="groups"></div>
+        <div id="leftGroups"></div>
         <div class="bar" id="bar">
           <span id="barText"></span>
           <button class="btn primary big" type="button" id="cleanBtn"></button>
         </div>
-      </div>
-    </section>
-
-    <!-- LEFTOVERS -->
-    <section class="page" id="p-leftovers">
-      <header class="ph ph-row">
-        <div><h1 data-i18n="navLeftovers"></h1><p data-i18n="leftSub"></p></div>
-        <button class="btn" type="button" id="recheck" data-i18n="recheck"></button>
-      </header>
-      <p class="banner" id="runBanner" hidden></p>
-      <div class="busy-page" id="leftBusy" hidden><span class="bar-anim"></span><p data-i18n="measuring"></p></div>
-      <div id="leftGroups"></div>
-      <div class="bar" id="leftBar" hidden>
-        <span id="leftBarText"></span>
-        <button class="btn primary big" type="button" id="leftBtn"></button>
       </div>
     </section>
 
@@ -83,8 +74,8 @@
     <section class="page" id="p-settings">
       <header class="ph"><h1 data-i18n="navSettings"></h1></header>
       <div class="group">
-        <div class="row" data-win><div><b data-i18n="menuOn"></b><p data-i18n="menuOnWin"></p></div><label class="switch"><input type="checkbox" data-set="contextMenu"><i></i></label></div>
-        <div class="row" data-mac><div><b data-i18n="menuOn"></b><p data-i18n="menuOnMac"></p></div></div>
+        <div class="row"><div><b data-i18n="menuOn"></b><p id="menuOnS"></p></div><label class="switch"><input type="checkbox" data-set="contextMenu"><i></i></label></div>
+        <div class="row"><div><b data-i18n="login"></b><p data-i18n="loginS"></p></div><label class="switch"><input type="checkbox" data-set="launchAtLogin"><i></i></label></div>
       </div>
       <div class="group">
         <div class="row"><div><b data-i18n="lang"></b></div>
@@ -93,7 +84,7 @@
           <div class="seg" data-set="theme"><button type="button" data-v="auto" data-i18n="followSystem"></button><button type="button" data-v="light" data-i18n="light"></button><button type="button" data-v="dark" data-i18n="dark"></button></div></div>
         <div class="row"><div><b data-i18n="accent"></b><p data-i18n="accentS"></p></div>
           <div class="swatches" id="swatches">
-            <button type="button" data-c="" style="--c:#4A55D0"></button>
+            <button type="button" data-c="" style="--c:#8B3FD9"></button>
             <button type="button" data-c="#0E7A6A" style="--c:#0E7A6A"></button>
             <button type="button" data-c="#F2501F" style="--c:#F2501F"></button>
             <button type="button" data-c="#1865EE" style="--c:#1865EE"></button>
@@ -116,7 +107,7 @@
         <div class="row"><div><b data-i18n="aWhat"></b><p data-i18n="aWhatS"></p></div></div>
         <div class="row"><div><b data-i18n="aSafe"></b><p data-i18n="aSafeS"></p></div></div>
         <div class="row"><div><b data-i18n="aOffline"></b><p data-i18n="aOfflineS"></p></div></div>
-        <div class="row"><div><b data-i18n="aCli"></b><p class="mono">shed scan &lt;folder&gt; · shed clean &lt;folder&gt; --apply · shed leftovers · shed undo</p></div></div>
+        <div class="row"><div><b data-i18n="aCli"></b><p class="mono">shed scan ~ · shed clean &lt;folder&gt; --apply · shed leftovers · shed undo</p></div></div>
       </div>
       <p class="note">github.com/DerrickDaVinci/shed · MIT · <span data-i18n="credit"></span></p>
     </section>

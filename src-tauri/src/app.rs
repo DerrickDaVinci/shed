@@ -1,4 +1,4 @@
-//! The desktop app: settings, the right-click entry and the commands the UI
+//! The desktop app: settings, the right-click entries and the commands the UI
 //! calls. All real work lives in `core`.
 
 use crate::core::{self, Env, Item, Leftover, Record};
@@ -6,7 +6,10 @@ use crate::{menu, trash};
 use serde::{Deserialize, Serialize};
 use std::path::{Path, PathBuf};
 use std::sync::Mutex;
-use tauri::{AppHandle, Emitter, Manager, State};
+use tauri::menu::{Menu, MenuItem, PredefinedMenuItem};
+use tauri::tray::TrayIconBuilder;
+use tauri::{AppHandle, Emitter, Manager, State, WindowEvent};
+use tauri_plugin_autostart::ManagerExt;
 use tauri_plugin_dialog::DialogExt;
 
 const MAX_RECENT: usize = 6;
@@ -20,13 +23,15 @@ struct Settings {
     accent: String,
     /// Folders scanned lately, newest first.
     recent: Vec<String>,
-    /// Windows: the Explorer entry is wanted (macOS manages its own).
+    /// The right-click entries (Finder extension, Explorer verbs) are wanted.
     context_menu: bool,
+    /// Start in the menu bar when you log in.
+    launch_at_login: bool,
 }
 
 impl Default for Settings {
     fn default() -> Self {
-        Settings { lang: "auto".into(), theme: "auto".into(), accent: String::new(), recent: vec![], context_menu: true }
+        Settings { lang: "auto".into(), theme: "auto".into(), accent: String::new(), recent: vec![], context_menu: true, launch_at_login: false }
     }
 }
 
@@ -44,44 +49,40 @@ impl Settings {
 }
 
 /// The last scan, kept here so that cleaning acts on what was shown, by
-/// position, and never on paths the page sends.
+/// position or id, and never on paths the page sends.
 #[derive(Serialize, Clone, Default)]
 struct Found {
     roots: Vec<String>,
+    /// The whole computer was scanned (and `leftovers` filled in).
+    computer: bool,
     /// [folder, reason] for folders Shed would not scan.
     refused: Vec<[String; 2]>,
     items: Vec<Item>,
+    leftovers: Vec<Leftover>,
+}
+
+/// What Finder, Explorer or a shed:// link asked for, waiting for the page.
+#[derive(Serialize, Clone, Default, Debug, PartialEq)]
+struct Request {
+    computer: bool,
+    folders: Vec<String>,
 }
 
 struct Store {
     env: Env,
     settings: Mutex<Settings>,
     found: Mutex<Found>,
-    /// Folders handed over by Finder or Explorer, waiting for the page.
-    pending: Mutex<Vec<String>>,
+    tray: Mutex<Option<[MenuItem<tauri::Wry>; 4]>>,
 }
+
+/// Managed from the very start: a shed:// link that launched the app
+/// arrives before `setup` has run.
+struct Pending(Mutex<Request>);
 
 impl Store {
     fn settings(&self) -> Settings {
         self.settings.lock().unwrap().clone()
     }
-    #[cfg(windows)]
-    fn zh(&self) -> bool {
-        match self.settings().lang.as_str() {
-            "zh" => true,
-            "en" => false,
-            _ => sys_locale_zh(),
-        }
-    }
-}
-
-/// Only Windows needs this: for the label of the Explorer entry.
-#[cfg(windows)]
-fn sys_locale_zh() -> bool {
-    std::process::Command::new("powershell")
-        .args(["-NoProfile", "-Command", "(Get-UICulture).Name"])
-        .output()
-        .is_ok_and(|o| String::from_utf8_lossy(&o.stdout).starts_with("zh"))
 }
 
 fn settings_file(app: &AppHandle) -> Option<PathBuf> {
@@ -95,23 +96,33 @@ fn save_settings(app: &AppHandle, s: &Settings) {
     }
 }
 
-#[cfg(windows)]
-fn menu_label(zh: bool) -> &'static str {
-    if zh {
-        "用 Shed 清理"
-    } else {
-        "Clean with Shed"
+/// The menu bar and the Explorer entries speak the app's language.
+fn zh(s: &Settings) -> bool {
+    match s.lang.as_str() {
+        "zh" => true,
+        "en" => false,
+        _ => sys_locale_zh(),
     }
 }
 
-/// Windows: make the registry match the setting (and the language).
-fn sync_context_menu(store: &Store) {
-    #[cfg(windows)]
-    {
-        let s = store.settings();
-        menu::set(s.context_menu, menu_label(store.zh()));
+fn sys_locale_zh() -> bool {
+    ["LC_ALL", "LANG"].iter().any(|k| std::env::var(k).is_ok_and(|v| v.starts_with("zh"))) || {
+        #[cfg(target_os = "macos")]
+        let out = std::process::Command::new("defaults").args(["read", "-g", "AppleLanguages"]).output();
+        #[cfg(windows)]
+        let out = std::process::Command::new("powershell").args(["-NoProfile", "-Command", "(Get-UICulture).Name"]).output();
+        #[cfg(not(any(target_os = "macos", windows)))]
+        let out: std::io::Result<std::process::Output> = Err(std::io::ErrorKind::Unsupported.into());
+        // "(\n    \"zh-Hans-CN\"," on macOS, "zh-CN" on Windows: the first language.
+        out.is_ok_and(|o| String::from_utf8_lossy(&o.stdout).trim_start_matches(['(', ' ', '\n', '"']).starts_with("zh"))
     }
-    let _ = store;
+}
+
+/// Make the right-click entries match the setting, off the main thread
+/// (pluginkit and reg take a moment).
+fn sync_context_menu(s: &Settings) {
+    let (on, zh) = (s.context_menu, zh(s));
+    std::thread::spawn(move || menu::set(on, zh));
 }
 
 #[derive(Serialize)]
@@ -149,14 +160,25 @@ fn info(app: AppHandle, store: State<Store>) -> Info {
 fn set_settings(app: AppHandle, store: State<Store>, settings: Settings) -> Settings {
     let settings = settings.clean();
     save_settings(&app, &settings);
+    let old = store.settings();
+    if settings.context_menu != old.context_menu || settings.lang != old.lang {
+        sync_context_menu(&settings);
+    }
+    if settings.launch_at_login != old.launch_at_login {
+        let al = app.autolaunch();
+        let _ = if settings.launch_at_login { al.enable() } else { al.disable() };
+    }
     *store.settings.lock().unwrap() = settings.clone();
-    sync_context_menu(&store);
+    relabel_tray(&store);
     settings
 }
 
+/// Scans folders, or with `computer` the whole home folder plus what AI
+/// tools and package managers keep outside it.
 #[tauri::command]
-async fn scan(app: AppHandle, store: State<'_, Store>, roots: Vec<String>) -> Result<Found, ()> {
-    let mut found = Found::default();
+async fn scan(app: AppHandle, store: State<'_, Store>, roots: Vec<String>, computer: bool) -> Result<Found, ()> {
+    let roots = if computer { vec![core::s(&store.env.home)] } else { roots };
+    let mut found = Found { computer, ..Default::default() };
     for root in &roots {
         let s = core::scan(&store.env, Path::new(root));
         found.roots.push(s.root.clone());
@@ -166,7 +188,9 @@ async fn scan(app: AppHandle, store: State<'_, Store>, roots: Vec<String>) -> Re
         }
     }
     found.items.sort_by(|a, b| b.bytes.cmp(&a.bytes));
-    {
+    if computer {
+        found.leftovers = core::leftovers(&store.env);
+    } else {
         let mut st = store.settings.lock().unwrap();
         for r in found.roots.iter().rev().filter(|r| !found.refused.iter().any(|[f, _]| f == *r)) {
             st.recent.insert(0, r.clone());
@@ -184,22 +208,15 @@ fn progress(app: &AppHandle) -> impl Fn(usize, usize) + Sync + '_ {
     }
 }
 
-/// Moves the items with these positions in the last scan to the Trash.
+/// Moves the items with these positions in the last scan, and the leftovers
+/// with these ids, to the Trash.
 #[tauri::command]
-async fn clean(app: AppHandle, store: State<'_, Store>, ids: Vec<usize>) -> Result<Record, ()> {
+async fn clean(app: AppHandle, store: State<'_, Store>, ids: Vec<usize>, leftover_ids: Vec<String>) -> Result<Record, ()> {
     let found = store.found.lock().unwrap().clone();
     let items: Vec<Item> = ids.iter().filter_map(|&i| found.items.get(i)).filter(|i| i.blocked.is_none()).cloned().collect();
-    Ok(core::clean_items(&store.env, &found.roots.join(", "), &items, &trash::to_trash, &progress(&app)))
-}
-
-#[tauri::command]
-async fn leftovers(store: State<'_, Store>) -> Result<Vec<Leftover>, ()> {
-    Ok(core::leftovers(&store.env))
-}
-
-#[tauri::command]
-async fn clean_leftovers(app: AppHandle, store: State<'_, Store>, ids: Vec<String>) -> Result<Record, ()> {
-    Ok(core::clean_leftovers(&store.env, &ids, &trash::to_trash, &progress(&app)))
+    let leftover_ids: Vec<String> = leftover_ids.into_iter().filter(|id| found.leftovers.iter().any(|l| &l.id == id)).collect();
+    let root = if found.computer { String::new() } else { found.roots.join(", ") };
+    Ok(core::clean(&store.env, &root, &items, &leftover_ids, &trash::to_trash, &progress(&app)))
 }
 
 #[tauri::command]
@@ -213,8 +230,8 @@ async fn undo(store: State<'_, Store>, time: u64) -> Result<Record, String> {
 }
 
 #[tauri::command]
-fn take_pending(store: State<Store>) -> Vec<String> {
-    std::mem::take(&mut *store.pending.lock().unwrap())
+fn take_pending(pending: State<Pending>) -> Request {
+    std::mem::take(&mut *pending.0.lock().unwrap())
 }
 
 #[tauri::command]
@@ -241,11 +258,46 @@ fn open_trash(store: State<Store>) {
     let _ = store;
 }
 
-// ------------------------------------------------------------------ folders from outside
+// ------------------------------------------------------------------ requests from outside
 
-/// Folders after `--open` (Explorer passes one per launch).
-fn open_args(args: &[String]) -> Vec<String> {
-    args.windows(2).filter(|w| w[0] == "--open").map(|w| w[1].clone()).collect()
+/// Explorer starts Shed with `--computer` (the Desktop) or `--open <folder>`.
+fn from_args(args: &[String]) -> Request {
+    Request { computer: args.iter().any(|a| a == "--computer"), folders: args.windows(2).filter(|w| w[0] == "--open").map(|w| w[1].clone()).collect() }
+}
+
+/// The Finder extension opens `shed://computer` or `shed://open?path=…`.
+fn from_link(link: &str) -> Request {
+    let Some(rest) = link.strip_prefix("shed://") else { return Request::default() };
+    let (what, query) = rest.split_once('?').unwrap_or((rest, ""));
+    match what.trim_end_matches('/') {
+        "computer" => Request { computer: true, folders: vec![] },
+        "open" => Request { computer: false, folders: query.split('&').filter_map(|kv| kv.strip_prefix("path=")).map(percent_decode).filter(|p| !p.is_empty()).collect() },
+        _ => Request::default(),
+    }
+}
+
+fn percent_decode(s: &str) -> String {
+    let b = s.as_bytes();
+    let mut out = Vec::with_capacity(b.len());
+    let mut i = 0;
+    while i < b.len() {
+        let hex = (b[i] == b'%')
+            .then(|| b.get(i + 1..i + 3))
+            .flatten()
+            .filter(|h| h.iter().all(u8::is_ascii_hexdigit))
+            .and_then(|h| u8::from_str_radix(std::str::from_utf8(h).ok()?, 16).ok());
+        match hex {
+            Some(v) => {
+                out.push(v);
+                i += 3;
+            }
+            None => {
+                out.push(b[i]);
+                i += 1;
+            }
+        }
+    }
+    String::from_utf8_lossy(&out).into_owned()
 }
 
 fn show_main(app: &AppHandle) {
@@ -256,15 +308,73 @@ fn show_main(app: &AppHandle) {
     }
 }
 
-/// Hands folders to the page: queued, then announced, so none is lost
+/// Hands a request to the page: queued, then announced, so none is lost
 /// whether or not the page has loaded yet.
-fn open_folders(app: &AppHandle, paths: Vec<String>) {
+fn handle(app: &AppHandle, req: Request) {
     show_main(app);
-    if paths.is_empty() {
+    if req == Request::default() {
         return;
     }
-    app.state::<Store>().pending.lock().unwrap().extend(paths);
-    let _ = app.emit("open-folders", ());
+    let pending = app.state::<Pending>();
+    let mut p = pending.0.lock().unwrap();
+    p.computer |= req.computer;
+    p.folders.extend(req.folders);
+    drop(p);
+    let _ = app.emit("open-request", ());
+}
+
+// ------------------------------------------------------------------ menu bar
+
+fn tray_labels(zh: bool) -> [&'static str; 4] {
+    if zh {
+        ["清理整台电脑…", "打开 Shed", "撤销上一次清理", "退出 Shed"]
+    } else {
+        ["Clean This Computer…", "Open Shed", "Undo Last Clean", "Quit Shed"]
+    }
+}
+
+fn relabel_tray(store: &Store) {
+    if let Some(items) = store.tray.lock().unwrap().as_ref() {
+        for (item, label) in items.iter().zip(tray_labels(zh(&store.settings()))) {
+            let _ = item.set_text(label);
+        }
+    }
+}
+
+fn undo_last(app: &AppHandle) {
+    let store = app.state::<Store>();
+    let result = match core::history(&store.env).into_iter().find(|r| !r.undone) {
+        Some(r) => core::undo(&store.env, r.time, &trash::restore),
+        None => Err("nothing".into()),
+    };
+    show_main(app);
+    let _ = app.emit("undone", result);
+}
+
+fn build_tray(app: &tauri::App) -> tauri::Result<()> {
+    let store = app.state::<Store>();
+    let [l_all, l_open, l_undo, l_quit] = tray_labels(zh(&store.settings()));
+    let all = MenuItem::with_id(app, "all", l_all, true, None::<&str>)?;
+    let open = MenuItem::with_id(app, "open", l_open, true, None::<&str>)?;
+    let undo = MenuItem::with_id(app, "undo", l_undo, true, None::<&str>)?;
+    let quit = MenuItem::with_id(app, "quit", l_quit, true, None::<&str>)?;
+    let menu = Menu::with_items(app, &[&all, &open, &undo, &PredefinedMenuItem::separator(app)?, &quit])?;
+    TrayIconBuilder::with_id("main")
+        .icon(tauri::image::Image::from_bytes(include_bytes!("../icons/tray.png"))?)
+        .icon_as_template(true)
+        .tooltip("Shed")
+        .menu(&menu)
+        .show_menu_on_left_click(true)
+        .on_menu_event(|app, e| match e.id.as_ref() {
+            "all" => handle(app, Request { computer: true, folders: vec![] }),
+            "open" => show_main(app),
+            "undo" => undo_last(app),
+            "quit" => app.exit(0),
+            _ => {}
+        })
+        .build(app)?;
+    *store.tray.lock().unwrap() = Some([all, open, undo, quit]);
+    Ok(())
 }
 
 pub fn run() {
@@ -272,39 +382,48 @@ pub fn run() {
         eprintln!("cannot find the home folder");
         return;
     };
-    let first = open_args(&std::env::args().collect::<Vec<_>>());
+    let first = from_args(&std::env::args().collect::<Vec<_>>());
     tauri::Builder::default()
-        .plugin(tauri_plugin_single_instance::init(|app, argv, _cwd| open_folders(app, open_args(&argv))))
+        .manage(Pending(Mutex::new(first)))
+        .plugin(tauri_plugin_single_instance::init(|app, argv, _cwd| handle(app, from_args(&argv))))
         .plugin(tauri_plugin_dialog::init())
+        .plugin(tauri_plugin_autostart::init(tauri_plugin_autostart::MacosLauncher::LaunchAgent, Some(vec!["--hidden"])))
         .setup(move |app| {
+            // A menu bar app: no Dock icon, the window comes and goes.
+            #[cfg(target_os = "macos")]
+            app.set_activation_policy(tauri::ActivationPolicy::Accessory);
             let handle = app.handle().clone();
             let settings = settings_file(&handle)
                 .and_then(|p| std::fs::read(p).ok())
                 .and_then(|b| serde_json::from_slice::<Settings>(&b).ok())
                 .unwrap_or_default()
                 .clean();
-            app.manage(Store { env, settings: Mutex::new(settings), found: Mutex::default(), pending: Mutex::new(first) });
-            sync_context_menu(&app.state::<Store>());
-            #[cfg(target_os = "macos")]
-            {
-                let h = handle.clone();
-                menu::register(move |paths| {
-                    let app = h.clone();
-                    let _ = h.run_on_main_thread(move || open_folders(&app, paths));
-                });
+            sync_context_menu(&settings);
+            app.manage(Store { env, settings: Mutex::new(settings), found: Mutex::default(), tray: Mutex::new(None) });
+            build_tray(app)?;
+            // Started at login: wait in the menu bar.
+            if !std::env::args().any(|a| a == "--hidden") {
+                show_main(&handle);
             }
-            show_main(&handle);
             Ok(())
         })
-        .invoke_handler(tauri::generate_handler![info, set_settings, scan, clean, leftovers, clean_leftovers, history, undo, take_pending, pick_folder, reveal, open_trash])
+        .invoke_handler(tauri::generate_handler![info, set_settings, scan, clean, history, undo, take_pending, pick_folder, reveal, open_trash])
+        .on_window_event(|window, event| {
+            // Closing the window keeps Shed in the menu bar.
+            if let WindowEvent::CloseRequested { api, .. } = event {
+                api.prevent_close();
+                let _ = window.hide();
+            }
+        })
         .build(tauri::generate_context!())
         .expect("error while running Shed")
-        .run(|app, event| {
+        .run(|app, event| match event {
             #[cfg(target_os = "macos")]
-            if let tauri::RunEvent::Reopen { .. } = event {
-                show_main(app);
-            }
-            let _ = (app, event);
+            tauri::RunEvent::Reopen { .. } => show_main(app),
+            // shed:// links (macOS delivers them as an "open URL" event).
+            #[cfg(target_os = "macos")]
+            tauri::RunEvent::Opened { urls } => urls.iter().for_each(|u| handle(app, from_link(u.as_str()))),
+            _ => {}
         });
 }
 
@@ -313,11 +432,24 @@ mod tests {
     use super::*;
 
     #[test]
-    fn open_args_from_explorer() {
+    fn requests_from_explorer() {
         let a = |v: &[&str]| v.iter().map(|s| s.to_string()).collect::<Vec<_>>();
-        assert_eq!(open_args(&a(&["shed", "--open", "C:\\code\\app"])), ["C:\\code\\app"]);
-        assert!(open_args(&a(&["shed", "--open"])).is_empty());
-        assert!(open_args(&a(&["shed"])).is_empty());
+        assert_eq!(from_args(&a(&["shed", "--open", "C:\\code\\app"])).folders, ["C:\\code\\app"]);
+        assert!(from_args(&a(&["shed", "--open"])).folders.is_empty());
+        assert!(from_args(&a(&["shed", "--computer"])).computer);
+        assert_eq!(from_args(&a(&["shed"])), Request::default());
+    }
+
+    #[test]
+    fn requests_from_links() {
+        assert!(from_link("shed://computer").computer);
+        assert!(from_link("shed://computer/").computer);
+        let r = from_link("shed://open?path=/Users/me/My%20App%20%26%20Co&path=/tmp/a%2Bb%25");
+        assert_eq!(r.folders, ["/Users/me/My App & Co", "/tmp/a+b%"]);
+        assert_eq!(from_link("shed://open?path=%E4%B8%AD%E6%96%87").folders, ["中文"]);
+        assert_eq!(from_link("shed://delete?path=/"), Request::default());
+        assert_eq!(from_link("https://example.com"), Request::default());
+        assert_eq!(percent_decode("bad%zz%4"), "bad%zz%4");
     }
 
     #[test]

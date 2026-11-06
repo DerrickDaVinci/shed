@@ -24,3 +24,4 @@ Helpful reports include the Shed version, the operating system, the folder you s
 - Folders go to the Trash or Recycle Bin, never deleted directly.
 - Each folder is checked again right before it moves: a real folder (links are never followed), next to its project file, nothing in it tracked by git.
 - Clean requests from the window refer to items of the last scan by position; the window cannot name arbitrary paths.
+- `shed://` links (used by the Finder extension) can only start a scan, which reads and never moves anything.
