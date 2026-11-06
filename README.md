@@ -39,6 +39,28 @@ Shed is a right-click away, looks at the whole computer, shows everything before
 - **Conversation history is off limits.** Codex sessions, Claude Code transcripts and Codex task folders are shown with their size, never offered for cleaning.
 - **Undo.** Every clean is in History. Until you empty the Trash, **Undo** puts every folder back. It never overwrites a folder that was rebuilt in the meantime.
 
+- **English and 中文.** The app follows your system language; switch it in Settings. Light, dark and any accent color.
+
+## What gets cleaned, and what it costs
+
+Shed cleans what can be **rebuilt or downloaded again**. For a project you have not opened in months that is pure waste; for the one you work on today it means the next build takes longer. So everything is listed with its cost, and you decide.
+
+| What | Examples | Cost of cleaning it | Ticked by default |
+|---|---|---|---|
+| Project dependencies and build output | `node_modules`, Rust `target`, `.next`, `__pycache__`, `.pytest_cache`, Python virtualenvs | The next `npm install` / `cargo build` / `pip install` runs in full: minutes and a download | Yes, unless one of the cautions below applies |
+| Folders that may be real work | `build`, `dist`, `out`, `bin`, `vendor` | Could be something you meant to keep | Only when git ignores them |
+| AI tool leftovers | Old Claude Code builds, unfinished Codex runtime downloads, Xcode DerivedData | None in practice | Yes |
+| The Claude VM archive | `rootfs.img.zst` kept after the VM was unpacked | ~1 GB download if the Claude app ever rebuilds its VM | No |
+| Download caches | npm, pnpm, Yarn, Cargo, pip, uv, Gradle, Playwright, Homebrew | Packages download again next time | No |
+
+**Not ticked by default:** a project with a dev server or watcher running in it, a virtualenv with no dependency list next to it (`requirements.txt`, `pyproject.toml`…), and anything that belongs to the Claude app or Codex while that app is open. Anything touched today is ticked but marked "the next build will redo it".
+
+**Never touched:** your source code, any folder with files git tracks, Codex and Claude Code conversation history, Codex task folders (`~/Documents/Codex`), and app data in `~/Library` / `AppData` beyond the AI leftovers listed below.
+
+**Two things Shed cannot see, so check them yourself:** edits you made by hand inside `node_modules` without saving them as a patch (patch-package and the like), and packages installed into a virtualenv by hand but never written into its dependency list. Both are lost when that folder is cleaned and rebuilt.
+
+**Nothing is deleted.** Everything goes to the Trash (Recycle Bin on Windows), and **Undo** in History puts it back until you empty the Trash. That also means the space comes back only when you empty it.
+
 ### What counts as an AI leftover
 
 | Item | Where | Ticked by default |
@@ -134,7 +156,26 @@ The table of project types and their rebuildable folders started from [kondo](ht
 - **默认谨慎**：项目里有开发服务器或监视程序在跑，不勾；虚拟环境找不到依赖清单，不勾；今天刚用过的，会标出来。
 - **AI 遗留**：清理整台电脑时，清单里还会列出 AI 编程工具在项目之外留下的东西和各种下载缓存（npm、pnpm、Yarn、Cargo、pip、uv、Gradle、Playwright、Homebrew 等），每项写明清掉的代价。属于 Claude 桌面版或 Codex 的项目，要等它们退出后才能清。
 - **对话记录不碰**：Codex 会话、Claude Code 会话记录、Codex 任务文件夹（文稿/Codex）只显示占用，永远不会列为可清理。
+- **中英文**：界面跟随系统语言，也可以在设置里切换；浅色、深色和任意主题色。
 - **可以撤销**：每次清理都记在「记录」里。清空废纸篓之前，「撤销」能把文件夹全部放回原处；如果原位置已经重新生成了同名文件夹，不会覆盖它。
+
+**会清什么、清掉的代价**：Shed 清的是**能重新生成或重新下载的东西**。几个月没碰的项目里，它们就是纯粹占地方；正在做的项目里，清掉意味着下次构建要多花点时间。所以每一项都写明代价，由你决定。
+
+| 类别 | 例子 | 清掉的代价 | 默认勾选 |
+|---|---|---|---|
+| 项目依赖和构建产物 | `node_modules`、Rust `target`、`.next`、`__pycache__`、`.pytest_cache`、Python 虚拟环境 | 下次 `npm install`、`cargo build`、`pip install` 会完整重跑，要几分钟，还要联网下载 | 是（下面几种情况除外） |
+| 可能是成果的文件夹 | `build`、`dist`、`out`、`bin`、`vendor` | 可能是你想留的东西 | 只有被 git 忽略时才勾 |
+| AI 工具遗留 | 旧版 Claude Code、Codex 下载到一半的运行时、Xcode DerivedData | 基本没有 | 是 |
+| Claude 虚拟机压缩包 | 解压后留下的 `rootfs.img.zst` | Claude 重建虚拟机时要重新下载约 1 GB | 否 |
+| 下载缓存 | npm、pnpm、Yarn、Cargo、pip、uv、Gradle、Playwright、Homebrew | 下次安装时重新下载 | 否 |
+
+**默认不勾**：项目里有开发服务器或监视程序在跑；虚拟环境旁边找不到依赖清单（`requirements.txt`、`pyproject.toml` 等）；属于 Claude 桌面版或 Codex、而它们正开着。今天刚用过的照样勾选，但会标出「清掉后下次要重新构建」。
+
+**永远不碰**：你的源代码、有 git 跟踪文件的文件夹、Codex 和 Claude Code 的对话记录、Codex 任务文件夹（文稿/Codex），以及 `~/Library`、`AppData` 里的应用数据（只有上面列出的 AI 遗留例外）。
+
+**有两种情况 Shed 看不出来，请自己留意**：你在 `node_modules` 里手动改过、但没有存成补丁（比如用 patch-package）的代码；手动装进虚拟环境、但没写进依赖清单的包。清掉再重建后，这两样都会丢。
+
+**不会直接删除**：所有东西都只是移到废纸篓（Windows 是回收站），清空之前在「记录」里点「撤销」就能放回。也正因为如此，要清空废纸篓，空间才会真正腾出来。
 
 **安全**：只移到废纸篓，从不直接删除；移动前的一刻会再检查一遍（仍然是真实文件夹、旁边仍有项目文件、git 仍未跟踪）；不扫描系统文件夹、主目录的上层、`~/Library` 和 `AppData`，也会跳过主目录下工具的隐藏安装目录（比如 `~/.vscode`、`~/.claude/plugins`，那里的 `node_modules` 是工具运行要用的）；不联网，没有统计，没有账号。
 
