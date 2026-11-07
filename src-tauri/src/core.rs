@@ -1047,7 +1047,7 @@ mod tests {
         assert_eq!(get("claudeSessions").unwrap().blocked.as_deref(), Some("keep"));
         assert!(!get("claudeVmArchive").unwrap().selected, "costs a download later, so opt-in");
         let old = get("claudeCodeOld").unwrap();
-        assert_eq!(old.paths, [s(&e.app_data.join("Claude/claude-code/2.1.1"))]);
+        assert_eq!(old.paths, [s(&e.app_data.join("Claude").join("claude-code").join("2.1.1"))]);
 
         // Cleaning by id never touches history, whatever the UI asks for.
         let moved = Mutex::new(vec![]);
@@ -1060,7 +1060,7 @@ mod tests {
         if running(&processes()).claude {
             assert!(rec.done.is_empty());
         } else {
-            assert_eq!(*moved.lock().unwrap(), [s(&e.app_data.join("Claude/claude-code/2.1.1"))]);
+            assert_eq!(*moved.lock().unwrap(), [s(&e.app_data.join("Claude").join("claude-code").join("2.1.1"))]);
         }
     }
 
